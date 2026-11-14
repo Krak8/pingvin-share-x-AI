@@ -9,4 +9,10 @@ export class MyShareSecurityDTO {
 
   @Expose()
   restrictToRecipients: boolean;
+
+  @Expose()
+  oneTimeDownload: boolean;
+
+  @Expose()
+  embedsDisabled: boolean;
 }

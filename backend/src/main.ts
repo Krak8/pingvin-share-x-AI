@@ -36,6 +36,8 @@ async function bootstrap() {
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: logLevels,
+    // Registered below so that streamed uploads can be excluded
+    bodyParser: false,
   });
 
   app.useGlobalPipes(new I18nValidationPipe({ whitelist: true }));
@@ -44,7 +46,21 @@ async function bootstrap() {
 
   const config = app.get<ConfigService>(ConfigService);
 
+  // The curl upload endpoints stream the request body straight to disk, so no
+  // body parser may consume it, whatever Content-Type the client sends.
+  const isUploadRequest = (req: Request) =>
+    req.originalUrl.split("?")[0].startsWith("/api/upload");
+  const jsonParser = bodyParser.json();
+  const urlencodedParser = bodyParser.urlencoded({ extended: true });
+  app.use((req: Request, res: Response, next: NextFunction) =>
+    isUploadRequest(req) ? next() : jsonParser(req, res, next),
+  );
+  app.use((req: Request, res: Response, next: NextFunction) =>
+    isUploadRequest(req) ? next() : urlencodedParser(req, res, next),
+  );
+
   app.use((req: Request, res: Response, next: NextFunction) => {
+    if (isUploadRequest(req)) return next();
     const chunkSize = config.get("share.chunkSize");
     bodyParser.raw({
       type: "application/octet-stream",

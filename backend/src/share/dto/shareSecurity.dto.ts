@@ -19,4 +19,14 @@ export class ShareSecurityDTO {
   @IsBoolean()
   @IsOptional()
   restrictToRecipients: boolean;
+
+  // Share expires right after its first download
+  @IsBoolean()
+  @IsOptional()
+  oneTimeDownload: boolean;
+
+  // Opt out of Discord/OpenGraph link previews for this share
+  @IsBoolean()
+  @IsOptional()
+  embedsDisabled: boolean;
 }

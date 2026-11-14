@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 
 import { ScheduleModule } from "@nestjs/schedule";
+import { ApiTokenModule } from "./apiToken/apiToken.module";
 import { AuthModule } from "./auth/auth.module";
 
 import { existsSync } from "fs";
@@ -20,7 +21,10 @@ import { OAuthModule } from "./oauth/oauth.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { ReverseShareModule } from "./reverseShare/reverseShare.module";
 import { ShareModule } from "./share/share.module";
+import { MetricsModule } from "./metrics/metrics.module";
+import { UploadModule } from "./upload/upload.module";
 import { UserModule } from "./user/user.module";
+import { WebhookModule } from "./webhook/webhook.module";
 import { SystemModule } from "./system/system.module";
 import { AdminNoticeModule } from "./adminNotice/adminNotice.module";
 
@@ -34,8 +38,12 @@ const i18nPath = existsSync(join(__dirname, "../i18n"))
   imports: [
     ConfigModule,
     AuthModule,
+    ApiTokenModule,
     ShareModule,
     FileModule,
+    UploadModule,
+    MetricsModule,
+    WebhookModule,
     EmailModule,
     PrismaModule,
     JobsModule,

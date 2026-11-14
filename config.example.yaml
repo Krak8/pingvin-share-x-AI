@@ -38,6 +38,10 @@ security:
   requireNumber: "false"
   #Whether to require at least one special character in the password.
   requireSpecialCharacter: "false"
+  #Allow users to create API tokens to upload and manage shares from scripts, e.g. with curl. Disabling this immediately stops all existing tokens from working.
+  enableApiTokens: "true"
+  #How many API tokens a single user can have. Set to 0 for no limit.
+  maxApiTokensPerUser: "10"
 appearance:
   #Primary color used for buttons, links, and accents. Choose custom to use a color picker override.
   themePrimaryColor: victoria
@@ -76,6 +80,8 @@ share:
   chunkSize: "10000000"
   #How long files are kept after a share expires or gets deleted. Only useful if the 'Allow admin access to all shares' is also enabled. Set to -1 to keep files forever.
   fileRetentionPeriod: 0 days
+  #Show a preview (image, video or audio) when a share link is posted in apps like Discord or Slack. Shares with a password, view limit, one-time download or restricted recipients never show their contents.
+  enableEmbeds: "true"
 cache:
   #Normally Pingvin Share caches information in memory. If you run multiple instances of Pingvin Share, you need to enable Redis caching to share the cache between the instances.
   redis-enabled: "false"
@@ -293,6 +299,21 @@ s3:
   secret: ""
   #Turn off for backends that do not support checksum (e.g. B2).
   useChecksum: "true"
+integrations:
+  #Send notifications to a webhook. Discord and Slack webhook URLs are detected automatically, any other URL receives a signed JSON payload.
+  webhookEnabled: "false"
+  #The URL the notifications are sent to (http or https).
+  webhookUrl: ""
+  #If set, JSON payloads are signed with HMAC-SHA256 and the signature is sent in the X-Pingvin-Signature header.
+  webhookSecret: ""
+  #Send a notification when a share has been created.
+  webhookOnShareCreated: "true"
+  #Send a notification when a share is downloaded, at most once per minute and share.
+  webhookOnDownload: "false"
+  #Expose aggregated metrics at /api/metrics. Requires a metrics token.
+  metricsEnabled: "false"
+  #Prometheus has to send this value as bearer token (authorization header). The endpoint stays disabled while this is empty.
+  metricsToken: ""
 legal:
   #Whether to show a link to imprint and privacy policy in the footer.
   enabled: "false"

@@ -6,7 +6,7 @@ import { FileService } from "src/file/file.service";
 import { PrismaService } from "src/prisma/prisma.service";
 import { ReverseShareService } from "src/reverseShare/reverseShare.service";
 import { ConfigService } from "src/config/config.service";
-import { SHARE_DIRECTORY } from "../constants";
+import { DATA_DIRECTORY, SHARE_DIRECTORY } from "../constants";
 
 @Injectable()
 export class JobsService {
@@ -128,6 +128,22 @@ export class JobsService {
       }
     }
 
+    // Leftovers of interrupted curl uploads
+    const uploadTempDirectory = `${DATA_DIRECTORY}/uploads/_temp`;
+    if (fs.existsSync(uploadTempDirectory)) {
+      for (const file of fs.readdirSync(uploadTempDirectory)) {
+        const path = `${uploadTempDirectory}/${file}`;
+        const isOlderThanOneDay = moment(fs.statSync(path).mtime)
+          .add(1, "day")
+          .isBefore(moment());
+
+        if (isOlderThanOneDay) {
+          fs.rmSync(path, { force: true });
+          filesDeleted++;
+        }
+      }
+    }
+
     this.logger.log(`Deleted ${filesDeleted} temporary files`);
   }
 
@@ -147,8 +163,15 @@ export class JobsService {
         where: { expiresAt: { lt: new Date() } },
       });
 
+    const { count: apiTokenCount } = await this.prisma.apiToken.deleteMany({
+      where: { expiresAt: { lt: new Date() } },
+    });
+
     const deletedTokensCount =
-      refreshTokenCount + loginTokenCount + resetPasswordTokenCount;
+      refreshTokenCount +
+      loginTokenCount +
+      resetPasswordTokenCount +
+      apiTokenCount;
 
     if (deletedTokensCount > 0) {
       this.logger.log(`Deleted ${deletedTokensCount} expired refresh tokens`);

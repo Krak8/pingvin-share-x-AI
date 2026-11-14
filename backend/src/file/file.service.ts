@@ -3,10 +3,17 @@ import {
   Injectable,
   Logger,
   BadRequestException,
+  ForbiddenException,
+  HttpStatus,
   NotFoundException,
+  StreamableFile,
 } from "@nestjs/common";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import { Cache } from "cache-manager";
+import * as contentDisposition from "content-disposition";
+import { Request, Response } from "express";
+import * as mime from "mime-types";
+import * as moment from "moment";
 import { LocalFileService } from "./local.service";
 import { S3FileService } from "./s3.service";
 import { ConfigService } from "src/config/config.service";
@@ -14,9 +21,28 @@ import { Readable } from "stream";
 import { PrismaService } from "../prisma/prisma.service";
 import { EmailService } from "src/email/email.service";
 import { I18nService } from "nestjs-i18n";
+import { WebhookService } from "src/webhook/webhook.service";
 
 const UPDATED_AT_THROTTLE_MS = 5 * 60 * 1000;
 const DOWNLOAD_NOTIFICATION_COOLDOWN_MS = 15 * 60 * 1000;
+
+// Pre-signed S3 URLs are valid for 5 minutes. A one-time share on S3 is only
+// removed after that so the redirect that was just issued still works.
+const S3_ONE_TIME_DELETE_DELAY_MS = 6 * 60 * 1000;
+
+export function getMimeType(fileName: string): string {
+  return mime?.lookup?.(fileName) || "application/octet-stream";
+}
+
+/** Media a browser can safely render inline (SVG is excluded as it can run scripts) */
+export function isPassiveMedia(mimeType: string): boolean {
+  return (
+    mimeType.startsWith("video/") ||
+    mimeType.startsWith("audio/") ||
+    (mimeType.startsWith("image/") && mimeType !== "image/svg+xml") ||
+    mimeType === "text/plain"
+  );
+}
 
 @Injectable()
 export class FileService {
@@ -27,6 +53,7 @@ export class FileService {
     private configService: ConfigService,
     private emailService: EmailService,
     private readonly i18n: I18nService,
+    private webhookService: WebhookService,
     @Inject(CACHE_MANAGER) private cache: Cache,
   ) {}
   private readonly logger = new Logger(FileService.name);
@@ -253,6 +280,230 @@ export class FileService {
         e instanceof Error ? e.stack : String(e),
       );
     }
+  }
+
+  /**
+   * Streams a file (or redirects to S3) and sets all response headers.
+   * Used by both the file id route and the direct file URL.
+   */
+  async serve(
+    req: Request,
+    res: Response,
+    shareId: string,
+    fileId: string,
+    isDownload: boolean,
+    recipientId?: string,
+  ): Promise<StreamableFile | undefined> {
+    const isHead = req.method === "HEAD";
+    const isFullDownload = isDownload && !req.headers.range;
+    const isOneTime = await this.isOneTimeShare(shareId);
+
+    if (isOneTime) {
+      // Previews and partial requests would allow viewing the file as often
+      // as wanted, so only the actual download is possible
+      if (!isDownload || req.headers.range) {
+        throw new ForbiddenException(
+          this.i18n.t("file.oneTimeNoPreview"),
+          "one_time_no_preview",
+        );
+      }
+      if (!isHead) await this.claimOneTimeDownload(shareId);
+      res.set("Cache-Control", "no-store");
+    }
+
+    const storageProvider = await this.getStorageProvider(shareId);
+
+    if (storageProvider === "S3") {
+      const url = await this.getPreSignedDownloadUrl(
+        shareId,
+        fileId,
+        isDownload,
+      );
+      const fileName = await this.getFileName(shareId, fileId);
+      if (isDownload && !isHead) {
+        void this.notifyRecipientDownload(shareId, fileName, recipientId);
+        void this.webhookService.notifyDownload(shareId, fileName);
+      }
+      if (isOneTime && !isHead) {
+        this.removeShareLater(shareId, S3_ONE_TIME_DELETE_DELAY_MS);
+      }
+      res.status(302).setHeader("Location", url);
+      return;
+    }
+
+    const file = await this.get(shareId, fileId, req.headers.range);
+    const totalSize = parseInt(file.metaData.size, 10);
+
+    if (file.isRangeNotSatisfiable) {
+      res.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE);
+      res.set({
+        "Content-Range": `bytes */${totalSize}`,
+        "Accept-Ranges": "bytes",
+      });
+      return;
+    }
+
+    const mimeType = getMimeType(file.metaData.name);
+
+    // File content never changes for a given id, so it can be revalidated
+    // cheaply. The request still passes all security guards every time.
+    const etag = `"${file.metaData.id}-${file.metaData.size}"`;
+    if (
+      !isOneTime &&
+      !req.headers.range &&
+      req.headers["if-none-match"] === etag
+    ) {
+      file.file?.destroy();
+      res.status(HttpStatus.NOT_MODIFIED);
+      res.set({ ETag: etag, "Cache-Control": "private, no-cache" });
+      return;
+    }
+
+    const headers: Record<string, string | number> = {
+      "Content-Type": mimeType,
+      "Accept-Ranges": "bytes",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Disposition": contentDisposition(
+        file.metaData.name,
+        isDownload ? undefined : { type: "inline" },
+      ),
+    };
+
+    if (!isOneTime) {
+      headers["ETag"] = etag;
+      headers["Cache-Control"] = "private, no-cache";
+    }
+
+    if (file.range) {
+      res.status(HttpStatus.PARTIAL_CONTENT);
+      headers["Content-Range"] =
+        `bytes ${file.range.start}-${file.range.end}/${totalSize}`;
+      headers["Content-Length"] = file.range.end - file.range.start + 1;
+    } else {
+      headers["Content-Length"] = totalSize;
+    }
+
+    if (!isPassiveMedia(mimeType)) {
+      headers["Content-Security-Policy"] = "sandbox";
+    }
+
+    res.set(headers);
+
+    if (isFullDownload && !isHead) {
+      void this.notifyRecipientDownload(
+        shareId,
+        file.metaData.name,
+        recipientId,
+      );
+      void this.webhookService.notifyDownload(shareId, file.metaData.name);
+    }
+
+    if (isOneTime && !isHead) {
+      res.once("close", () => void this.removeShare(shareId));
+    }
+
+    return new StreamableFile(file.file);
+  }
+
+  async serveZip(
+    req: Request,
+    res: Response,
+    shareId: string,
+    recipientId?: string,
+  ): Promise<StreamableFile> {
+    const isHead = req.method === "HEAD";
+    const isOneTime = await this.isOneTimeShare(shareId);
+
+    if (isOneTime) {
+      if (!isHead) await this.claimOneTimeDownload(shareId);
+      res.set("Cache-Control", "no-store");
+    }
+
+    const zipStream = await this.getZip(shareId);
+
+    res.set({
+      "Content-Type": "application/zip",
+      "Content-Disposition": contentDisposition(`${shareId}.zip`),
+    });
+
+    if (!isHead) {
+      void this.notifyRecipientDownload(shareId, `${shareId}.zip`, recipientId);
+      void this.webhookService.notifyDownload(shareId, `${shareId}.zip`);
+    }
+
+    if (isOneTime && !isHead) {
+      res.once("close", () => void this.removeShare(shareId));
+    }
+
+    return new StreamableFile(zipStream);
+  }
+
+  /** Finds a file of a share by its name, used by the direct file URL */
+  async findFileByName(shareId: string, fileName?: string) {
+    if (fileName === undefined) {
+      // /d/:shareId only works if there is nothing to choose from
+      const files = await this.prisma.file.findMany({
+        where: { shareId },
+        take: 2,
+      });
+      if (files.length !== 1) {
+        throw new NotFoundException(this.i18n.t("file.notFound"));
+      }
+      return files[0];
+    }
+
+    const file = await this.prisma.file.findFirst({
+      where: { shareId, name: fileName },
+      orderBy: { createdAt: "asc" },
+    });
+    if (!file) throw new NotFoundException(this.i18n.t("file.notFound"));
+    return file;
+  }
+
+  async isOneTimeShare(shareId: string): Promise<boolean> {
+    const security = await this.prisma.shareSecurity.findUnique({
+      where: { shareId },
+      select: { oneTimeDownload: true },
+    });
+    return !!security?.oneTimeDownload;
+  }
+
+  /**
+   * Atomically marks a one-time share as consumed by expiring it, so that of
+   * several simultaneous requests only the first one gets the file.
+   */
+  private async claimOneTimeDownload(shareId: string) {
+    const result = await this.prisma.share.updateMany({
+      where: {
+        id: shareId,
+        OR: [
+          { expiration: { gt: new Date() } },
+          { expiration: { equals: moment(0).toDate() } },
+        ],
+      },
+      data: { expiration: new Date() },
+    });
+
+    if (result.count === 0) {
+      throw new NotFoundException(this.i18n.t("share.notFound"));
+    }
+  }
+
+  private async removeShare(shareId: string) {
+    try {
+      await this.deleteAllFiles(shareId);
+      await this.prisma.share.delete({ where: { id: shareId } });
+    } catch (e) {
+      // The expired share is also picked up by the cleanup job
+      this.logger.error(
+        `Failed to delete one-time share ${shareId}`,
+        e instanceof Error ? e.stack : String(e),
+      );
+    }
+  }
+
+  private removeShareLater(shareId: string, delayMs: number) {
+    setTimeout(() => void this.removeShare(shareId), delayMs).unref();
   }
 
   async getStorageProvider(shareId: string): Promise<string> {

@@ -1,0 +1,7 @@
+{
+  "disabled": "API tokens are disabled on this server",
+  "limitReached": "You can have at most {max} API tokens",
+  "notFound": "API token not found",
+  "invalid": "Invalid, expired or revoked API token",
+  "scopeNotAllowed": "This API token is not allowed to access this endpoint"
+}

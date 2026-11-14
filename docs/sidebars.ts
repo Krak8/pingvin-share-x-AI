@@ -48,6 +48,16 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: "category",
+      label: "Usage",
+      items: [
+        {
+          type: "doc",
+          id: "usage/api-and-curl",
+        },
+      ],
+    },
+    {
+      type: "category",
       label: "Helping Out",
       items: [
         {

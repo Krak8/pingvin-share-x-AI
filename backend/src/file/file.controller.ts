@@ -3,28 +3,24 @@ import {
   Controller,
   Delete,
   Get,
-  HttpStatus,
   Param,
   Post,
   Query,
   Req,
   Res,
-  StreamableFile,
   UseGuards,
 } from "@nestjs/common";
 import { SkipThrottle, Throttle } from "@nestjs/throttler";
-import * as contentDisposition from "content-disposition";
 import { Request, Response } from "express";
 import { CreateShareGuard } from "src/share/guard/createShare.guard";
 import { StrictShareOwnerGuard } from "src/share/guard/strictShareOwner.guard";
 import { IdValidation } from "src/share/guard/shareIdValidation.guard";
 import { FileService } from "./file.service";
 import { FileSecurityGuard } from "./guard/fileSecurity.guard";
-import * as mime from "mime-types";
 
-const VALID_ID_REGEX = /^[a-zA-Z0-9-]*={0,2}$/;
+export const VALID_ID_REGEX = /^[a-zA-Z0-9-]*={0,2}$/;
 
-function getValidRecipientId(recipientId?: string): string | undefined {
+export function getValidRecipientId(recipientId?: string): string | undefined {
   if (!recipientId) return undefined;
   return VALID_ID_REGEX.test(recipientId) ? recipientId : undefined;
 }
@@ -120,24 +116,17 @@ export class FileController {
   @Get("zip")
   @UseGuards(FileSecurityGuard)
   async getZip(
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
     @Param("shareId") shareId: string,
     @Query("recipient") recipientId?: string,
   ) {
-    const zipStream = await this.fileService.getZip(shareId);
-
-    res.set({
-      "Content-Type": "application/zip",
-      "Content-Disposition": contentDisposition(`${shareId}.zip`),
-    });
-
-    void this.fileService.notifyRecipientDownload(
+    return this.fileService.serveZip(
+      req,
+      res,
       shareId,
-      `${shareId}.zip`,
       getValidRecipientId(recipientId),
     );
-
-    return new StreamableFile(zipStream);
   }
 
   @Throttle({
@@ -156,83 +145,14 @@ export class FileController {
     @Query("download") download = "true",
     @Query("recipient") recipientId?: string,
   ) {
-    const isDownload = download === "true";
-    const storageProvider = await this.fileService.getStorageProvider(shareId);
-
-    if (storageProvider === "S3") {
-      const url = await this.fileService.getPreSignedDownloadUrl(
-        shareId,
-        fileId,
-        isDownload,
-      );
-      const fileName = await this.fileService.getFileName(shareId, fileId);
-      if (isDownload) {
-        void this.fileService.notifyRecipientDownload(
-          shareId,
-          fileName,
-          getValidRecipientId(recipientId),
-        );
-      }
-      res.status(302).setHeader("Location", url);
-      return;
-    }
-
-    const file = await this.fileService.get(shareId, fileId, req.headers.range);
-
-    const totalSize = parseInt(file.metaData.size, 10);
-
-    if (file.isRangeNotSatisfiable) {
-      res.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE);
-      res.set({
-        "Content-Range": `bytes */${totalSize}`,
-        "Accept-Ranges": "bytes",
-      });
-      return;
-    }
-
-    const mimeType =
-      mime?.lookup?.(file.metaData.name) || "application/octet-stream";
-
-    const isPassiveMedia =
-      mimeType.startsWith("video/") ||
-      mimeType.startsWith("audio/") ||
-      (mimeType.startsWith("image/") && mimeType !== "image/svg+xml") ||
-      mimeType === "text/plain";
-
-    const headers: Record<string, string | number> = {
-      "Content-Type": mimeType,
-      "Accept-Ranges": "bytes",
-      "X-Content-Type-Options": "nosniff",
-      "Content-Disposition": contentDisposition(
-        file.metaData.name,
-        isDownload ? undefined : { type: "inline" },
-      ),
-    };
-
-    if (file.range) {
-      res.status(HttpStatus.PARTIAL_CONTENT);
-      headers["Content-Range"] =
-        `bytes ${file.range.start}-${file.range.end}/${totalSize}`;
-      headers["Content-Length"] = file.range.end - file.range.start + 1;
-    } else {
-      headers["Content-Length"] = totalSize;
-    }
-
-    if (!isPassiveMedia) {
-      headers["Content-Security-Policy"] = "sandbox";
-    }
-
-    res.set(headers);
-
-    if (isDownload && !file.range) {
-      void this.fileService.notifyRecipientDownload(
-        shareId,
-        file.metaData.name,
-        getValidRecipientId(recipientId),
-      );
-    }
-
-    return new StreamableFile(file.file);
+    return this.fileService.serve(
+      req,
+      res,
+      shareId,
+      fileId,
+      download === "true",
+      getValidRecipientId(recipientId),
+    );
   }
 
   @Delete(":fileId")

@@ -12,6 +12,7 @@ import { PrismaService } from "src/prisma/prisma.service";
 import { ShareSecurityGuard } from "src/share/guard/shareSecurity.guard";
 import { ShareService } from "src/share/share.service";
 import { ConfigService } from "src/config/config.service";
+import { getShareTokenFromRequest } from "src/share/shareToken.util";
 
 @Injectable()
 export class FileSecurityGuard extends ShareSecurityGuard {
@@ -43,7 +44,7 @@ export class FileSecurityGuard extends ShareSecurityGuard {
       throw new BadRequestException(this._i18n.t("file.invalidIdFormat"));
     }
 
-    const shareToken = request.cookies[`share_${shareId}_token`];
+    const shareToken = getShareTokenFromRequest(request, shareId);
 
     const share = await this._prisma.share.findUnique({
       where: { id: shareId },
