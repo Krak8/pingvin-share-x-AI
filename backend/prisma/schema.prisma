@@ -28,6 +28,7 @@ model User {
   shares              Share[]
   refreshTokens       RefreshToken[]
   loginTokens         LoginToken[]
+  apiTokens           ApiToken[]
   reverseShares       ReverseShare[]
   shareUserRecipients ShareUserRecipient[]
   adminNoticeDismissals AdminNoticeDismissal[]
@@ -55,6 +56,24 @@ model RefreshToken {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   oauthIDToken  String? // prefixed with the ID of the issuing OAuth provider, separated by a colon
+}
+
+model ApiToken {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  name       String
+  // SHA-256 of the full token. The plain token is only shown once on creation.
+  tokenHash  String   @unique
+  // First characters of the token so users can tell their tokens apart
+  prefix     String
+  // Comma separated list of scopes: upload, read, manage
+  scopes     String
+  expiresAt  DateTime?
+  lastUsedAt DateTime?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model LoginToken {
@@ -157,6 +176,8 @@ model ShareSecurity {
   password             String?
   maxViews             Int?
   restrictToRecipients Boolean @default(false)
+  oneTimeDownload      Boolean @default(false)
+  embedsDisabled       Boolean @default(false)
 
   shareId String? @unique
   share   Share?  @relation(fields: [shareId], references: [id], onDelete: Cascade)

@@ -69,6 +69,13 @@ export class ShareController {
     );
   }
 
+  @Get(":id/embed")
+  @Throttle({ default: { limit: 120, ttl: 60 * 1000 } })
+  @UseGuards(IdValidation)
+  async getEmbedInfo(@Param("id") id: string) {
+    return this.shareService.getEmbedInfo(id);
+  }
+
   @Get(":id")
   @UseGuards(IdValidation, ShareSecurityGuard)
   async get(@Param("id") id: string) {

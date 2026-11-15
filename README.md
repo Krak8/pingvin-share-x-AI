@@ -24,6 +24,10 @@ Pingvin Share X is a fork of [Pingvin Share](https://github.com/stonith404/pingv
 - OIDC and LDAP authentication
 - Integration with ClamAV for security scans
 - Different file providers: local storage and S3
+- API tokens with curl upload and download, plus direct file URLs
+- Link previews for media in Discord, Slack and other chat apps
+- One-time download links
+- Webhook notifications and Prometheus metrics
 
 ## Setup
 

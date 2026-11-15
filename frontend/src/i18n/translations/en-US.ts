@@ -135,6 +135,36 @@ export default {
     "Unlinking your social accounts may prevent access if you do not remember your login credentials.",
   "account.notify.oauth.unlinked.success": "Unlinked successfully",
 
+  "account.card.api-tokens.title": "API tokens",
+  "account.card.api-tokens.description":
+    "Tokens let scripts and tools like curl upload and manage shares on your behalf. They can't change your account or settings.",
+  "account.card.api-tokens.empty": "You don't have any API tokens yet.",
+  "account.card.api-tokens.create": "Create token",
+  "account.card.api-tokens.create.title": "Create API token",
+  "account.card.api-tokens.name": "Name",
+  "account.card.api-tokens.name.placeholder": "e.g. Backup server",
+  "account.card.api-tokens.scopes": "Permissions",
+  "account.card.api-tokens.scope.upload": "Upload: create shares and upload files",
+  "account.card.api-tokens.scope.read": "Read: list shares and download files",
+  "account.card.api-tokens.scope.manage": "Manage: edit, expire and delete shares",
+  "account.card.api-tokens.expiration": "Expires",
+  "account.card.api-tokens.expiration.30": "In 30 days",
+  "account.card.api-tokens.expiration.90": "In 90 days",
+  "account.card.api-tokens.expiration.365": "In 1 year",
+  "account.card.api-tokens.expiration.never": "Never",
+  "account.card.api-tokens.created.title": "Your new API token",
+  "account.card.api-tokens.created.description":
+    "Copy the token now. For security reasons it is only shown once and can't be displayed again.",
+  "account.card.api-tokens.example": "Example",
+  "account.card.api-tokens.copied": "Token copied",
+  "account.card.api-tokens.expires": "Expires {date}",
+  "account.card.api-tokens.never-expires": "Never expires",
+  "account.card.api-tokens.last-used": "Last used {date}",
+  "account.card.api-tokens.never-used": "Never used",
+  "account.card.api-tokens.revoke": "Revoke",
+  "account.card.api-tokens.revoke.title": "Revoke \"{name}\"?",
+  "account.card.api-tokens.revoke.description":
+    "Anything using this token will immediately lose access. This can't be undone.",
   "account.card.security.title": "Security",
   "account.card.security.totp.enable.description":
     "Enter your current password to enable TOTP.",
@@ -460,6 +490,10 @@ export default {
   "upload.modal.accordion.security.title": "Security options",
   "upload.modal.accordion.security.password.label": "Password protection",
   "upload.modal.accordion.security.password.placeholder": "No password",
+  "upload.modal.accordion.security.one-time.label":
+    "Delete after the first download",
+  "upload.modal.accordion.security.no-embed.label":
+    "Disable link previews (Discord, Slack, ...)",
   "upload.modal.accordion.security.max-views.label": "Maximum views",
   "upload.modal.accordion.security.max-views.placeholder": "No limit",
 
@@ -476,6 +510,9 @@ export default {
   // /share/[id]
   "share.title": "Share {shareId}",
   "share.description": "Take a look at what I’ve shared with you!",
+  "share.one-time.title": "One-time download",
+  "share.one-time.description":
+    "This share is deleted as soon as it has been downloaded once. Previews are not available.",
   "share.fileCount":
     "{count, plural, =1 {# file} other {# files}} · {size} (zip file may be smaller due to compression)",
   "share.copy-text-contents": "Copy file contents to clipboard",
@@ -621,6 +658,37 @@ export default {
     "Require special character",
   "admin.config.security.require-special-character.description":
     "Whether to require at least one special character in the password.",
+  "admin.config.security.enable-api-tokens": "Enable API tokens",
+  "admin.config.security.enable-api-tokens.description":
+    "Allow users to create API tokens to upload and manage shares from scripts, e.g. with curl. Disabling this immediately stops all existing tokens from working.",
+  "admin.config.security.max-api-tokens-per-user":
+    "Maximum API tokens per user",
+  "admin.config.security.max-api-tokens-per-user.description":
+    "How many API tokens a single user can have. Set to 0 for no limit.",
+  "admin.config.share.enable-embeds": "Enable link previews",
+  "admin.config.share.enable-embeds.description":
+    "Show a preview (image, video or audio) when a share link is posted in apps like Discord or Slack. Shares with a password, view limit, one-time download or restricted recipients never show their contents.",
+  "admin.config.integrations.webhook-enabled": "Enable webhook",
+  "admin.config.integrations.webhook-enabled.description":
+    "Send notifications to a webhook. Discord and Slack webhook URLs are detected automatically, any other URL receives a signed JSON payload.",
+  "admin.config.integrations.webhook-url": "Webhook URL",
+  "admin.config.integrations.webhook-url.description":
+    "The URL the notifications are sent to (http or https).",
+  "admin.config.integrations.webhook-secret": "Webhook secret",
+  "admin.config.integrations.webhook-secret.description":
+    "If set, JSON payloads are signed with HMAC-SHA256 and the signature is sent in the X-Pingvin-Signature header.",
+  "admin.config.integrations.webhook-on-share-created": "Notify on new shares",
+  "admin.config.integrations.webhook-on-share-created.description":
+    "Send a notification when a share has been created.",
+  "admin.config.integrations.webhook-on-download": "Notify on downloads",
+  "admin.config.integrations.webhook-on-download.description":
+    "Send a notification when a share is downloaded, at most once per minute and share.",
+  "admin.config.integrations.metrics-enabled": "Enable Prometheus metrics",
+  "admin.config.integrations.metrics-enabled.description":
+    "Expose aggregated metrics at /api/metrics. Requires a metrics token.",
+  "admin.config.integrations.metrics-token": "Metrics token",
+  "admin.config.integrations.metrics-token.description":
+    "Prometheus has to send this value as bearer token (authorization header). The endpoint stays disabled while this is empty.",
   "admin.config.cache.ttl": "TTL",
   "admin.config.cache.ttl.description":
     "Time, in seconds, to keep data in the cache.",
@@ -922,6 +990,7 @@ export default {
     "Turn off for backends that do not support checksum (e.g. B2).",
   "admin.config.s3.docs-link":
     "CORS must be reconfigured on your bucket, see the {wikiLink} for details.",
+  "admin.config.category.integrations": "Integrations",
   "admin.config.category.legal": "Legal",
   "admin.config.legal.enabled": "Enable legal notices",
   "admin.config.legal.enabled.description":

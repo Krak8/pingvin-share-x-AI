@@ -10,6 +10,7 @@ import { I18nService } from "nestjs-i18n";
 import { PrismaService } from "src/prisma/prisma.service";
 import { ShareService } from "src/share/share.service";
 import { ConfigService } from "src/config/config.service";
+import { getShareTokenFromRequest } from "src/share/shareToken.util";
 import { JwtGuard } from "src/auth/guard/jwt.guard";
 import { User } from "@prisma/client";
 
@@ -74,7 +75,7 @@ export class ShareSecurityGuard extends JwtGuard {
       ? request.params.shareId
       : request.params.id;
 
-    const shareToken = request.cookies[`share_${shareId}_token`];
+    const shareToken = getShareTokenFromRequest(request, shareId);
 
     const share = await this.prisma.share.findUnique({
       where: { id: shareId },

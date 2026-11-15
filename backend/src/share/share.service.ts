@@ -16,6 +16,8 @@ import { pipeline } from "stream/promises";
 import { I18nService } from "nestjs-i18n";
 import { ClamScanService } from "src/clamscan/clamscan.service";
 import { ConfigService } from "src/config/config.service";
+import { getMimeType } from "src/file/file.service";
+import { WebhookService } from "src/webhook/webhook.service";
 import { EmailService } from "src/email/email.service";
 import { FileService } from "src/file/file.service";
 import { PrismaService } from "src/prisma/prisma.service";
@@ -38,6 +40,7 @@ export class ShareService {
     private fileService: FileService,
     private emailService: EmailService,
     private config: ConfigService,
+    private webhookService: WebhookService,
     private jwtService: JwtService,
     private reverseShareService: ReverseShareService,
     private clamScanService: ClamScanService,
@@ -366,6 +369,8 @@ export class ShareService {
       );
     }
 
+    void this.webhookService.notifyShareCreated(share.id);
+
     // Check if any file is malicious with ClamAV
     void this.clamScanService.checkAndRemove(share.id);
 
@@ -461,6 +466,7 @@ export class ShareService {
     return {
       ...share,
       hasPassword: !!share.security?.password,
+      oneTimeDownload: !!share.security?.oneTimeDownload,
     };
   }
 
@@ -584,7 +590,12 @@ export class ShareService {
         ? body.security.maxViews
         : currentSecurity?.maxViews;
 
-    if (!nextPassword && !nextMaxViews) {
+    // The one-time and embed flags can't be edited, but they must survive
+    // removing the password and view limit
+    const keepsFlags =
+      currentSecurity?.oneTimeDownload || currentSecurity?.embedsDisabled;
+
+    if (!nextPassword && !nextMaxViews && !keepsFlags) {
       if (currentSecurity) {
         await this.prisma.shareSecurity.delete({ where: { shareId } });
       }
@@ -641,6 +652,8 @@ export class ShareService {
         maxViews: share.security?.maxViews,
         passwordProtected: !!share.security?.password,
         restrictToRecipients: !!share.security?.restrictToRecipients,
+        oneTimeDownload: !!share.security?.oneTimeDownload,
+        embedsDisabled: !!share.security?.embedsDisabled,
       },
     };
   }
@@ -674,6 +687,82 @@ export class ShareService {
     ) {
       throw new BadRequestException(this.i18n.t("share.maxExpirationExceeded"));
     }
+  }
+
+  /**
+   * Public, minimal metadata for link previews (Discord, Slack, ...).
+   * Anything that is protected in any way yields a generic card, so a
+   * preview never reveals more than the share page itself would.
+   */
+  async getEmbedInfo(shareId: string): Promise<EmbedInfo> {
+    const appName: string = this.config.get("general.appName");
+    const appUrl: string = this.config.get("general.appUrl");
+    const generic: EmbedInfo = { generic: true, appName, appUrl };
+
+    if (!this.config.get("share.enableEmbeds")) return generic;
+
+    const share = await this.prisma.share.findUnique({
+      where: { id: shareId },
+      include: { security: true, files: true, reverseShare: true },
+    });
+
+    if (!share || share.removedReason || !share.uploadLocked) return generic;
+    if (share.files.length === 0) return generic;
+
+    const isExpired =
+      moment(share.expiration).isBefore(moment()) &&
+      !moment(share.expiration).isSame(moment(0));
+    if (isExpired) return generic;
+
+    const security = share.security;
+    if (
+      security?.password ||
+      security?.maxViews ||
+      security?.restrictToRecipients ||
+      security?.oneTimeDownload ||
+      security?.embedsDisabled
+    ) {
+      return generic;
+    }
+    if (share.reverseShare && !share.reverseShare.publicAccess) return generic;
+
+    const size = share.files.reduce((sum, f) => sum + parseInt(f.size), 0);
+    const info: EmbedInfo = {
+      generic: false,
+      appName,
+      appUrl,
+      title: share.name || share.id,
+      description: share.description || undefined,
+      fileCount: share.files.length,
+      size,
+      expiration: moment(share.expiration).isSame(moment(0))
+        ? undefined
+        : share.expiration.toISOString(),
+    };
+
+    if (share.files.length === 1) {
+      const file = share.files[0];
+      const mimeType = getMimeType(file.name);
+      const kind =
+        mimeType.startsWith("image/") && mimeType !== "image/svg+xml"
+          ? "image"
+          : mimeType.startsWith("video/")
+            ? "video"
+            : mimeType.startsWith("audio/")
+              ? "audio"
+              : null;
+
+      if (kind) {
+        info.media = {
+          kind,
+          mimeType,
+          fileName: file.name,
+          url: `${appUrl}/api/d/${share.id}/${encodeURIComponent(file.name)}`,
+        };
+      }
+    }
+
+    return info;
   }
 
   async isShareIdAvailable(id: string) {
@@ -797,3 +886,20 @@ export class ShareService {
       .digest("hex");
   }
 }
+
+export type EmbedInfo = {
+  generic: boolean;
+  appName: string;
+  appUrl: string;
+  title?: string;
+  description?: string;
+  fileCount?: number;
+  size?: number;
+  expiration?: string;
+  media?: {
+    kind: "image" | "video" | "audio";
+    mimeType: string;
+    fileName: string;
+    url: string;
+  };
+};

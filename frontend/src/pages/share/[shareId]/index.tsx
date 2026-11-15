@@ -1,5 +1,6 @@
 import {
   ActionIcon,
+  Alert,
   Box,
   Button,
   Center,
@@ -14,7 +15,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { FormattedMessage } from "react-intl";
-import { TbEdit, TbPlusMinus } from "react-icons/tb";
+import { TbAlertCircle, TbEdit, TbPlusMinus } from "react-icons/tb";
 import Meta from "../../../components/Meta";
 import DownloadAllButton from "../../../components/share/DownloadAllButton";
 import FileList from "../../../components/share/FileList";
@@ -30,14 +31,38 @@ import toast from "../../../utils/toast.util";
 import { byteToHumanSizeString } from "../../../utils/fileSize.util";
 import { getQueryString } from "../../../utils/router.util";
 import { HoverTip } from "../../../components/core/HoverTip";
+import { EmbedInfo } from "../../../types/embed.type";
+import { isLinkPreviewBot } from "../../../utils/crawler.util";
 
-export function getServerSideProps(context: GetServerSidePropsContext) {
-  return {
-    props: { shareId: context.params!.shareId },
-  };
+export async function getServerSideProps(context: GetServerSidePropsContext) {
+  const shareId = context.params!.shareId as string;
+  let embed: EmbedInfo | null = null;
+
+  // Link preview bots (Discord, Slack, ...) don't run JavaScript, so for them
+  // the preview data is rendered into the HTML. Regular visitors skip this.
+  if (isLinkPreviewBot(context.req.headers["user-agent"])) {
+    try {
+      const apiURL = process.env.API_URL || "http://localhost:8080";
+      const response = await fetch(
+        `${apiURL}/api/shares/${encodeURIComponent(shareId)}/embed`,
+        { signal: AbortSignal.timeout(3000) },
+      );
+      if (response.ok) embed = await response.json();
+    } catch {
+      // Without preview data the page falls back to the generic meta tags
+    }
+  }
+
+  return { props: { shareId, embed } };
 }
 
-const Share = ({ shareId }: { shareId: string }) => {
+const Share = ({
+  shareId,
+  embed,
+}: {
+  shareId: string;
+  embed: EmbedInfo | null;
+}) => {
   const modals = useModals();
   const router = useRouter();
   const [share, setShare] = useState<ShareType>();
@@ -194,7 +219,20 @@ const Share = ({ shareId }: { shareId: string }) => {
       <Meta
         title={t("share.title", { shareId: share?.name || shareId })}
         description={t("share.description")}
+        embed={embed}
+        shareId={shareId}
       />
+
+      {share?.oneTimeDownload && (
+        <Alert
+          icon={<TbAlertCircle />}
+          color="yellow"
+          mb="lg"
+          title={t("share.one-time.title")}
+        >
+          <FormattedMessage id="share.one-time.description" />
+        </Alert>
+      )}
 
       <Group position="apart" mb="lg">
         <Box style={{ maxWidth: "70%" }}>

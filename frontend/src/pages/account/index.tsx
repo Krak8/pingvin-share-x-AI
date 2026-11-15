@@ -19,6 +19,7 @@ import { TbAuth2Fa } from "react-icons/tb";
 import { FormattedMessage } from "react-intl";
 import * as yup from "yup";
 import Meta from "../../components/Meta";
+import ApiTokens from "../../components/account/ApiTokens";
 import LanguagePicker from "../../components/account/LanguagePicker";
 import ThemeSwitcher from "../../components/account/ThemeSwitcher";
 import showEnableTotpModal from "../../components/account/showEnableTotpModal";
@@ -327,6 +328,7 @@ const Account = () => {
             </Tabs>
           </Paper>
         )}
+        {config.get("security.enableApiTokens") && <ApiTokens />}
         <Paper withBorder p="xl" mt="lg">
           <Title order={5} mb="xs">
             <FormattedMessage id="account.card.security.title" />

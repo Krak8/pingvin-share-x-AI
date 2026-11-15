@@ -96,6 +96,16 @@ export const configVariables = {
       defaultValue: "false",
       secret: false,
     },
+    enableApiTokens: {
+      type: "boolean",
+      defaultValue: "true",
+      secret: false,
+    },
+    maxApiTokensPerUser: {
+      type: "number",
+      defaultValue: "10",
+      secret: false,
+    },
   },
   appearance: {
     themePrimaryColor: {
@@ -187,6 +197,11 @@ export const configVariables = {
     fileRetentionPeriod: {
       type: "timespan",
       defaultValue: "0 days",
+      secret: false,
+    },
+    enableEmbeds: {
+      type: "boolean",
+      defaultValue: "true",
       secret: false,
     },
   },
@@ -516,6 +531,42 @@ export const configVariables = {
     useChecksum: {
       type: "boolean",
       defaultValue: "true",
+    },
+  },
+  integrations: {
+    webhookEnabled: {
+      type: "boolean",
+      defaultValue: "false",
+      secret: false,
+    },
+    webhookUrl: {
+      type: "string",
+      defaultValue: "",
+    },
+    webhookSecret: {
+      type: "string",
+      defaultValue: "",
+      obscured: true,
+    },
+    webhookOnShareCreated: {
+      type: "boolean",
+      defaultValue: "true",
+      secret: false,
+    },
+    webhookOnDownload: {
+      type: "boolean",
+      defaultValue: "false",
+      secret: false,
+    },
+    metricsEnabled: {
+      type: "boolean",
+      defaultValue: "false",
+      secret: false,
+    },
+    metricsToken: {
+      type: "string",
+      defaultValue: "",
+      obscured: true,
     },
   },
   legal: {

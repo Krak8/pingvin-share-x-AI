@@ -48,6 +48,7 @@ const showCreateUploadModal = (
     allowUnauthenticatedShares: boolean;
     enableEmailRecepients: boolean;
     enableUserRecipients: boolean;
+    enableEmbeds: boolean;
     maxExpiration: Timespan;
     defaultExpiration: Timespan;
     shareIdLength: number;
@@ -113,6 +114,7 @@ const CreateUploadModalBody = ({
     allowUnauthenticatedShares: boolean;
     enableEmailRecepients: boolean;
     enableUserRecipients: boolean;
+    enableEmbeds: boolean;
     maxExpiration: Timespan;
     defaultExpiration: Timespan;
     shareIdLength: number;
@@ -171,6 +173,8 @@ const CreateUploadModalBody = ({
       expiration_unit: `-${defaultTimespan.unit}` as string,
       never_expires: false,
       restrictToRecipients: false,
+      oneTimeDownload: false,
+      embedsDisabled: false,
     },
     validate: yupResolver(validationSchema),
   });
@@ -233,6 +237,8 @@ const CreateUploadModalBody = ({
               : values.password || undefined,
             maxViews: values.maxViews || undefined,
             restrictToRecipients: values.restrictToRecipients || undefined,
+            oneTimeDownload: values.oneTimeDownload || undefined,
+            embedsDisabled: values.embedsDisabled || undefined,
           },
         },
         files,
@@ -479,6 +485,22 @@ const CreateUploadModalBody = ({
                     label={t("upload.modal.accordion.security.max-views.label")}
                     {...form.getInputProps("maxViews")}
                   />
+                  <Checkbox
+                    label={t("upload.modal.accordion.security.one-time.label")}
+                    {...form.getInputProps("oneTimeDownload", {
+                      type: "checkbox",
+                    })}
+                  />
+                  {options.enableEmbeds && (
+                    <Checkbox
+                      label={t(
+                        "upload.modal.accordion.security.no-embed.label",
+                      )}
+                      {...form.getInputProps("embedsDisabled", {
+                        type: "checkbox",
+                      })}
+                    />
+                  )}
                 </Stack>
               </Accordion.Panel>
             </Accordion.Item>

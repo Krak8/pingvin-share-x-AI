@@ -16,6 +16,7 @@ import {
   TbBinaryTree,
   TbBucket,
   TbLock,
+  TbPlugConnected,
   TbMail,
   TbPalette,
   TbScale,
@@ -37,6 +38,7 @@ export const categories = [
   { name: "LDAP", icon: <TbBinaryTree /> },
   { name: "S3", icon: <TbBucket /> },
   { name: "Cache", icon: <TbServerBolt /> },
+  { name: "Integrations", icon: <TbPlugConnected /> },
   { name: "Legal", icon: <TbScale /> },
 ];
 

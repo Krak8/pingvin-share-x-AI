@@ -9,6 +9,7 @@ export type Share = {
   expiration: Date;
   size: number;
   hasPassword: boolean;
+  oneTimeDownload?: boolean;
 };
 
 export type CompletedShare = Share & {
@@ -66,10 +67,14 @@ export type ShareSecurity = {
   maxViews?: number;
   password?: string;
   restrictToRecipients?: boolean;
+  oneTimeDownload?: boolean;
+  embedsDisabled?: boolean;
 };
 
 export type MyShareSecurity = {
   passwordProtected: boolean;
   maxViews?: number;
   restrictToRecipients: boolean;
+  oneTimeDownload: boolean;
+  embedsDisabled: boolean;
 };
