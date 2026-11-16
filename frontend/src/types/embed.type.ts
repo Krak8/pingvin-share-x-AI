@@ -13,5 +13,7 @@ export type EmbedInfo = {
     mimeType: string;
     fileName: string;
     url: string;
+    width?: number;
+    height?: number;
   };
 };

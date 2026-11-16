@@ -38,6 +38,8 @@ import { byteToHumanSizeString } from "../../utils/fileSize.util";
 const promiseLimit = pLimit(3);
 let errorToastShown = false;
 let createdShare: Share;
+// The options that were chosen for the share being uploaded
+let createdSecurity: CreateShare["security"];
 
 const Upload = ({
   maxShareSize,
@@ -83,6 +85,7 @@ const Upload = ({
 
     try {
       const isReverseShare = router.pathname != "/upload";
+      createdSecurity = share.security;
       const totalSize = files.reduce((acc, file) => acc + file.size, 0);
       createdShare = await shareService.create(
         { ...share, size: totalSize },
@@ -281,6 +284,14 @@ const Upload = ({
             share,
             config.get("general.appUrl"),
             config.get("general.appUrl", true),
+            // A direct link only makes sense where visitors can open it freely
+            files.length === 1 &&
+              !createdSecurity?.password &&
+              !createdSecurity?.maxViews &&
+              !createdSecurity?.oneTimeDownload &&
+              !createdSecurity?.restrictToRecipients
+              ? getNormalizedFileName(files[0])
+              : undefined,
           );
           setFiles([]);
         })

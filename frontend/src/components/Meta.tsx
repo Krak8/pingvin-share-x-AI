@@ -50,6 +50,12 @@ const Meta = ({
           <meta property="og:type" content="website" />
           <meta property="og:image" content={media.url} />
           <meta property="og:image:type" content={media.mimeType} />
+          {media.width && media.height && (
+            <>
+              <meta property="og:image:width" content={String(media.width)} />
+              <meta property="og:image:height" content={String(media.height)} />
+            </>
+          )}
           <meta name="twitter:card" content="summary_large_image" />
           <meta name="twitter:image" content={media.url} />
         </>

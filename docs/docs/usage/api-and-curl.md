@@ -22,6 +22,8 @@ Tokens are deliberately limited. They only work for shares and uploads, never fo
 
 Administrators can disable API tokens and limit how many each user can have in **Admin → Configuration → Security**.
 
+When a token is created, the dialog shows ready-to-copy curl commands that match its permissions, and a ready-made ShareX configuration (see [ShareX](#sharex)). The token list shows when each token was last used and highlights tokens that expire soon or have expired.
+
 All examples below use these variables:
 
 ```bash
@@ -111,7 +113,7 @@ curl -OJ "$URL/api/d/aB3dE5gH"
 - Responses carry an `ETag`, so repeated requests only transfer the file if it changed.
 - Expiration, view limits, passwords and recipient restrictions are enforced just like on the share page.
 
-In the web interface the **copy link** button of a file copies its direct URL.
+In the web interface, the **copy link** button of a file copies its direct URL and the terminal button next to it copies a ready-made `curl -OJ "..."` command. Both are hidden for password protected and one-time shares. When you upload a single file without a password, view limit or one-time option, the "Share ready" dialog also shows the direct link.
 
 ### Password protected shares
 
@@ -156,12 +158,23 @@ When the link of a share is posted in apps like Discord, Slack, Telegram or Mast
 
 - A single **image** is shown inline, **video** and **audio** link to the file.
 - Everything else (documents, shares with several files) shows a card with the name, file count and size.
+- For images stored locally, the preview includes the image size so chat apps can lay it out without loading it first.
 
 For privacy, a preview **never** shows anything about shares that have a password, a view limit, a one-time download or restricted recipients, or about expired and unknown shares. They get the same generic card, so a preview doesn't reveal more than the link itself. Previews don't count as visits.
 
 Administrators can turn previews off in **Admin → Configuration → Share**, and a share can opt out with `noEmbed` / **Disable link previews**. Note that chat apps cache previews, so a changed or deleted share may keep showing the old preview for a while.
 
 The preview data is added to the page for known preview bots only. If you use a reverse proxy, make sure it passes the `User-Agent` header and that `/api/` is routed to the backend (the bundled Caddy configuration already does this).
+
+## ShareX
+
+[ShareX](https://getsharex.com) can upload screenshots and files straight to your instance:
+
+1. Create an API token with the **Upload** permission. In the dialog that appears, open the **ShareX** tab and download the configuration.
+2. In ShareX, open **Destinations → Custom uploader settings** and import the file.
+3. Select it as your image, text and file uploader. Uploaded files are copied to the clipboard as direct links.
+
+The file contains your token, so keep it private. If it leaks, revoke the token in your account. The configuration uses the same endpoint as the curl examples: `POST /api/upload`, the `Authorization` header, the file in the `file` form field, and the `directUrl` from the JSON response.
 
 ## Limits
 

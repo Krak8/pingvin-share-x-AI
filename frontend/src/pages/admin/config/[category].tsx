@@ -24,6 +24,7 @@ import ConfigurationNavBar from "../../../components/admin/configuration/Configu
 import LogoConfigInput from "../../../components/admin/configuration/LogoConfigInput";
 import TestEmailButton from "../../../components/admin/configuration/TestEmailButton";
 import TestRedisButton from "../../../components/admin/configuration/TestRedisButton";
+import TestWebhookButton from "../../../components/admin/configuration/TestWebhookButton";
 import CenterLoader from "../../../components/core/CenterLoader";
 import useConfig from "../../../hooks/config.hook";
 import useTranslate from "../../../hooks/useTranslate.hook";
@@ -407,6 +408,12 @@ export default function AppShellDemo() {
                 )}
                 {categoryId == "cache" && (
                   <TestRedisButton
+                    configVariablesChanged={updatedConfigVariables.length != 0}
+                    saveConfigVariables={saveConfigVariables}
+                  />
+                )}
+                {categoryId == "integrations" && (
+                  <TestWebhookButton
                     configVariablesChanged={updatedConfigVariables.length != 0}
                     saveConfigVariables={saveConfigVariables}
                   />

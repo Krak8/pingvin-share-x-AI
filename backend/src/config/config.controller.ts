@@ -26,6 +26,7 @@ import { ConfigDTO } from "./dto/config.dto";
 import { TestEmailDTO } from "./dto/testEmail.dto";
 import UpdateConfigDTO from "./dto/updateConfig.dto";
 import { LogoService } from "./logo.service";
+import { WebhookService } from "src/webhook/webhook.service";
 
 @Controller("configs")
 export class ConfigController {
@@ -33,6 +34,7 @@ export class ConfigController {
     private configService: ConfigService,
     private logoService: LogoService,
     private emailService: EmailService,
+    private webhookService: WebhookService,
     private readonly i18n: I18nService,
   ) {}
 
@@ -62,6 +64,12 @@ export class ConfigController {
   @UseGuards(JwtGuard, AdministratorGuard)
   async testEmail(@Body() { email }: TestEmailDTO) {
     await this.emailService.sendTestMail(email);
+  }
+
+  @Post("admin/testWebhook")
+  @UseGuards(JwtGuard, AdministratorGuard)
+  async testWebhook() {
+    return this.webhookService.sendTest();
   }
 
   @Post("admin/testRedis")

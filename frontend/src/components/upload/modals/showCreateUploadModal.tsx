@@ -38,6 +38,23 @@ import { Timespan } from "../../../types/timespan.type";
 import { generateShareId } from "../../../utils/share.util";
 import CustomUrlInput from "../../share/CustomUrlInput";
 
+const OptionLabel = ({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) => (
+  <Stack spacing={0}>
+    <Text size="sm" weight={500}>
+      {title}
+    </Text>
+    <Text size="xs" color="dimmed">
+      {description}
+    </Text>
+  </Stack>
+);
+
 const showCreateUploadModal = (
   modals: ModalsContextProps,
   options: {
@@ -178,6 +195,13 @@ const CreateUploadModalBody = ({
     },
     validate: yupResolver(validationSchema),
   });
+
+  // Link previews never show anything for these shares anyway
+  const previewsAlreadyHidden =
+    !!form.values.password ||
+    !!form.values.maxViews ||
+    form.values.oneTimeDownload ||
+    form.values.restrictToRecipients;
 
   const handleRestrictToggle = (checked: boolean) => {
     form.setFieldValue("restrictToRecipients", checked);
@@ -486,16 +510,35 @@ const CreateUploadModalBody = ({
                     {...form.getInputProps("maxViews")}
                   />
                   <Checkbox
-                    label={t("upload.modal.accordion.security.one-time.label")}
+                    label={
+                      <OptionLabel
+                        title={t(
+                          "upload.modal.accordion.security.one-time.label",
+                        )}
+                        description={t(
+                          "upload.modal.accordion.security.one-time.description",
+                        )}
+                      />
+                    }
                     {...form.getInputProps("oneTimeDownload", {
                       type: "checkbox",
                     })}
                   />
                   {options.enableEmbeds && (
                     <Checkbox
-                      label={t(
-                        "upload.modal.accordion.security.no-embed.label",
-                      )}
+                      disabled={previewsAlreadyHidden}
+                      label={
+                        <OptionLabel
+                          title={t(
+                            "upload.modal.accordion.security.no-embed.label",
+                          )}
+                          description={t(
+                            previewsAlreadyHidden
+                              ? "upload.modal.accordion.security.no-embed.already-hidden"
+                              : "upload.modal.accordion.security.no-embed.description",
+                          )}
+                        />
+                      }
                       {...form.getInputProps("embedsDisabled", {
                         type: "checkbox",
                       })}
