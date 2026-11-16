@@ -17,10 +17,12 @@ import moment from "moment";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
+  TbEyeOff,
   TbPlusMinus,
   TbInfoCircle,
   TbLink,
   TbLock,
+  TbSquareNumber1,
   TbTrash,
   TbUsers,
 } from "react-icons/tb";
@@ -115,6 +117,26 @@ const MyShares = () => {
                                 title={t(
                                   "account.shares.table.password-protected",
                                 )}
+                              />
+                            </span>
+                          </HoverTip>
+                        )}
+                        {share.security?.oneTimeDownload && (
+                          <HoverTip label={t("account.shares.table.one-time")}>
+                            <span style={{ display: "inline-flex" }}>
+                              <TbSquareNumber1
+                                color={theme.colors.violet[5]}
+                                aria-label={t("account.shares.table.one-time")}
+                              />
+                            </span>
+                          </HoverTip>
+                        )}
+                        {share.security?.embedsDisabled && (
+                          <HoverTip label={t("account.shares.table.no-embed")}>
+                            <span style={{ display: "inline-flex" }}>
+                              <TbEyeOff
+                                color={theme.colors.gray[6]}
+                                aria-label={t("account.shares.table.no-embed")}
                               />
                             </span>
                           </HoverTip>

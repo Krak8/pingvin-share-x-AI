@@ -1,9 +1,15 @@
-import { Injectable, Logger } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from "@nestjs/common";
 import * as crypto from "crypto";
+import { I18nService } from "nestjs-i18n";
 import { ConfigService } from "src/config/config.service";
 import { PrismaService } from "src/prisma/prisma.service";
 
-export type WebhookEvent = "share.created" | "share.downloaded";
+export type WebhookEvent = "share.created" | "share.downloaded" | "share.test";
 
 // Don't spam the webhook if a share is downloaded many times in a row
 const DOWNLOAD_COOLDOWN_MS = 60 * 1000;
@@ -22,6 +28,7 @@ export class WebhookService {
   constructor(
     private config: ConfigService,
     private prisma: PrismaService,
+    private readonly i18n: I18nService,
   ) {}
 
   private isActive(event: WebhookEvent): boolean {
@@ -112,11 +119,54 @@ export class WebhookService {
       : `Share "${title}" was downloaded${fileName ? ` (${fileName})` : ""}: ${share.url}`;
   }
 
+  /**
+   * Sends a test message to the configured URL and reports the outcome. In
+   * contrast to real notifications this doesn't swallow errors, so the admin
+   * sees what is wrong.
+   */
+  async sendTest(): Promise<{ ok: true; status: number }> {
+    if (!this.config.get("integrations.webhookUrl")) {
+      throw new BadRequestException(this.i18n.t("config.webhookUrlNotSet"));
+    }
+
+    const appName = this.config.get("general.appName");
+    const status = await this.deliver(
+      "share.test",
+      { share: null },
+      `Test notification from ${appName}. Your webhook is working.`,
+    );
+
+    if (status < 200 || status >= 300) {
+      throw new InternalServerErrorException(
+        this.i18n.t("config.webhookStatus", { args: { status } }),
+      );
+    }
+    return { ok: true, status };
+  }
+
   private async send(
     event: WebhookEvent,
     data: Record<string, unknown>,
     text: string,
   ) {
+    try {
+      const status = await this.deliver(event, data, text);
+      if (status < 200 || status >= 300) {
+        this.logger.warn(`Webhook responded with status ${status}`);
+      }
+    } catch (e) {
+      this.logger.warn(
+        `Webhook delivery failed: ${e instanceof Error ? e.message : e}`,
+      );
+    }
+  }
+
+  /** Delivers one message and returns the HTTP status. Throws on failure. */
+  private async deliver(
+    event: WebhookEvent,
+    data: Record<string, unknown>,
+    text: string,
+  ): Promise<number> {
     const url: string = this.config.get("integrations.webhookUrl");
     const secret: string = this.config.get("integrations.webhookSecret");
     const appName = this.config.get("general.appName");
@@ -125,12 +175,10 @@ export class WebhookService {
     try {
       parsed = new URL(url);
     } catch {
-      this.logger.warn("Webhook URL is not a valid URL");
-      return;
+      throw new BadRequestException(this.i18n.t("config.webhookUrlInvalid"));
     }
     if (!["http:", "https:"].includes(parsed.protocol)) {
-      this.logger.warn("Webhook URL must use http or https");
-      return;
+      throw new BadRequestException(this.i18n.t("config.webhookUrlInvalid"));
     }
 
     const isDiscord =
@@ -170,8 +218,6 @@ export class WebhookService {
       signal: AbortSignal.timeout(5000),
     });
 
-    if (!response.ok) {
-      this.logger.warn(`Webhook responded with status ${response.status}`);
-    }
+    return response.status;
   }
 }

@@ -30,6 +30,9 @@ import { SHARE_DIRECTORY } from "../constants";
 import { CreateShareDTO } from "./dto/createShare.dto";
 import { UpdateShareDTO } from "./dto/updateShare.dto";
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const sharp = require("sharp");
+
 @Injectable()
 export class ShareService {
   private readonly logger = new Logger(ShareService.name);
@@ -759,6 +762,22 @@ export class ShareService {
           fileName: file.name,
           url: `${appUrl}/api/d/${share.id}/${encodeURIComponent(file.name)}`,
         };
+
+        // Chat apps lay out the preview better when they know the size.
+        // Only the image header is read, and only for local storage.
+        if (kind === "image" && share.storageProvider === "LOCAL") {
+          try {
+            const { width, height } = await sharp(
+              `${SHARE_DIRECTORY}/${share.id}/${file.id}`,
+            ).metadata();
+            if (width && height) {
+              info.media.width = width;
+              info.media.height = height;
+            }
+          } catch {
+            // Not a readable image, the preview works without dimensions
+          }
+        }
       }
     }
 
@@ -901,5 +920,7 @@ export type EmbedInfo = {
     mimeType: string;
     fileName: string;
     url: string;
+    width?: number;
+    height?: number;
   };
 };

@@ -2,9 +2,15 @@ import { ActionIcon, Group, Skeleton, Stack, TextInput } from "@mantine/core";
 import { useClipboard } from "@mantine/hooks";
 import { useModals } from "@mantine/modals";
 import { useState } from "react";
-import { TbDownload, TbEye, TbLink, TbClipboard } from "react-icons/tb";
+import {
+  TbClipboard,
+  TbDownload,
+  TbEye,
+  TbLink,
+  TbTerminal2,
+} from "react-icons/tb";
 import { FormattedMessage } from "react-intl";
-import useConfig from "../../hooks/config.hook";
+import useBaseUrl from "../../hooks/baseUrl.hook";
 import useTranslate from "../../hooks/useTranslate.hook";
 import shareService from "../../services/share.service";
 import { FileMetaData } from "../../types/File.type";
@@ -32,7 +38,7 @@ const FileList = ({
   recipientId?: string;
 }) => {
   const clipboard = useClipboard();
-  const config = useConfig();
+  const getBaseUrl = useBaseUrl();
   const modals = useModals();
   const t = useTranslate();
 
@@ -41,28 +47,44 @@ const FileList = ({
     direction: "asc",
   });
 
-  const copyFileLink = (file: FileMetaData) => {
+  const getDirectLink = (file: FileMetaData) => {
     const recipientQuery = recipientId
       ? `?recipient=${encodeURIComponent(recipientId)}`
       : "";
-    const link = `${config.get("general.appUrl") !== config.get("general.appUrl", true) ? config.get("general.appUrl") : window.location.origin}/api/d/${
-      share.id
-    }/${encodeURIComponent(file.name)}${recipientQuery}`;
+    return `${getBaseUrl()}/api/d/${share.id}/${encodeURIComponent(file.name)}${recipientQuery}`;
+  };
 
+  // Copies the text, or shows it for manual copying where the clipboard isn't
+  // available (it needs a secure context, i.e. HTTPS)
+  const copyOrShow = (text: string, title: string, copiedMessage: string) => {
     if (window.isSecureContext) {
-      clipboard.copy(link);
-      toast.success(t("common.notify.copied-link"));
+      clipboard.copy(text);
+      toast.success(copiedMessage);
     } else {
       modals.openModal({
-        title: t("share.modal.file-link"),
+        title,
         children: (
           <Stack align="stretch">
-            <TextInput variant="filled" value={link} />
+            <TextInput variant="filled" value={text} readOnly />
           </Stack>
         ),
       });
     }
   };
+
+  const copyFileLink = (file: FileMetaData) =>
+    copyOrShow(
+      getDirectLink(file),
+      t("share.modal.file-link"),
+      t("common.notify.copied-link"),
+    );
+
+  const copyCurlCommand = (file: FileMetaData) =>
+    copyOrShow(
+      `curl -OJ "${getDirectLink(file)}"`,
+      t("share.file.copy-curl"),
+      t("share.notify.curl-copied"),
+    );
 
   return (
     <FileTree
@@ -135,6 +157,19 @@ const FileList = ({
                 onClick={() => copyFileLink(file)}
               >
                 <TbLink />
+              </ActionIcon>
+            </HoverTip>
+          )}
+          {!share.hasPassword && !share.oneTimeDownload && (
+            <HoverTip label={t("share.file.copy-curl")} touch={false}>
+              <ActionIcon
+                color="gray"
+                variant="light"
+                size={ICON_SIZE}
+                aria-label={t("share.file.copy-curl")}
+                onClick={() => copyCurlCommand(file)}
+              >
+                <TbTerminal2 />
               </ActionIcon>
             </HoverTip>
           )}

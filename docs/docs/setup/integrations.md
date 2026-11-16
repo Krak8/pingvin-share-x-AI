@@ -49,6 +49,7 @@ Pingvin Share X can notify a webhook when a share is created or downloaded. Enab
 - Any other URL receives a JSON payload. If a secret is configured, the body is signed with HMAC-SHA256 and the signature is sent in the `X-Pingvin-Signature` header (`sha256=<hex>`).
 - Download notifications are sent at most once per minute and share. Only real downloads count, not inline views or range requests.
 - A failing webhook never affects uploads or downloads, it is only logged.
+- Use the **Send test message** button next to Save to check your setup. It sends a `share.test` message to the saved URL and shows the reason if it fails (invalid URL, unreachable server or an error status). It works even while notifications are switched off. If you have unsaved changes, you are asked to save them first.
 
 Example payload:
 
@@ -103,4 +104,3 @@ scrape_configs:
 | `process_uptime_seconds`, `process_resident_memory_bytes` | Process information                           |
 
 Only aggregated numbers are exposed, never anything about individual shares or users.
-

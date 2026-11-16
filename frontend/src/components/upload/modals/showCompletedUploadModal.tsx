@@ -1,7 +1,16 @@
-import { Button, Stack, Text, Collapse } from "@mantine/core";
+import {
+  ActionIcon,
+  Button,
+  Collapse,
+  CopyButton,
+  Stack,
+  Text,
+  TextInput,
+} from "@mantine/core";
 import { useModals } from "@mantine/modals";
 import { ModalsContextProps } from "@mantine/modals/lib/context";
 import { useState } from "react";
+import { TbCheck, TbCopy } from "react-icons/tb";
 import moment from "moment";
 import { useRouter } from "next/router";
 import { FormattedMessage } from "react-intl";
@@ -17,6 +26,8 @@ const showCompletedUploadModal = (
   share: CompletedShare,
   appUrl: string,
   defaultAppUrl: string,
+  // Set for single file shares without restrictions: offers a link to the file itself
+  directFileName?: string,
 ) => {
   const t = translateOutsideContext();
   return modals.openModal({
@@ -25,7 +36,12 @@ const showCompletedUploadModal = (
     closeOnEscape: false,
     title: t("upload.modal.completed.share-ready"),
     children: (
-      <Body share={share} appUrl={appUrl} defaultAppUrl={defaultAppUrl} />
+      <Body
+        share={share}
+        appUrl={appUrl}
+        defaultAppUrl={defaultAppUrl}
+        directFileName={directFileName}
+      />
     ),
   });
 };
@@ -34,10 +50,12 @@ const Body = ({
   share,
   appUrl,
   defaultAppUrl,
+  directFileName,
 }: {
   share: CompletedShare;
   appUrl: string;
   defaultAppUrl: string;
+  directFileName?: string;
 }) => {
   const modals = useModals();
   const router = useRouter();
@@ -51,7 +69,11 @@ const Body = ({
 
   const isReverseShare = !!router.query["reverseShareToken"];
 
-  const link = `${appUrl !== defaultAppUrl ? appUrl : window.location.origin}/s/${share.id}`;
+  const baseUrl = appUrl !== defaultAppUrl ? appUrl : window.location.origin;
+  const link = `${baseUrl}/s/${share.id}`;
+  const directLink = directFileName
+    ? `${baseUrl}/api/d/${share.id}/${encodeURIComponent(directFileName)}`
+    : undefined;
 
   return (
     <Stack align="stretch">
@@ -59,6 +81,32 @@ const Body = ({
       <Collapse in={showQR}>
         <QRCode link={link} />
       </Collapse>
+      {directLink && (
+        <TextInput
+          readOnly
+          variant="filled"
+          size="xs"
+          label={t("upload.modal.completed.direct-link")}
+          value={directLink}
+          onFocus={(e) => e.currentTarget.select()}
+          rightSection={
+            window.isSecureContext ? (
+              <CopyButton value={directLink} timeout={1500}>
+                {({ copied, copy }) => (
+                  <ActionIcon
+                    size="sm"
+                    onClick={copy}
+                    color={copied ? "teal" : "gray"}
+                    aria-label={t("common.button.copy")}
+                  >
+                    {copied ? <TbCheck size={14} /> : <TbCopy size={14} />}
+                  </ActionIcon>
+                )}
+              </CopyButton>
+            ) : undefined
+          }
+        />
+      )}
       {share.notifyReverseShareCreator === true && (
         <Text
           size="sm"

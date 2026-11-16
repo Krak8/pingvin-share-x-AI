@@ -223,17 +223,6 @@ const Share = ({
         shareId={shareId}
       />
 
-      {share?.oneTimeDownload && (
-        <Alert
-          icon={<TbAlertCircle />}
-          color="yellow"
-          mb="lg"
-          title={t("share.one-time.title")}
-        >
-          <FormattedMessage id="share.one-time.description" />
-        </Alert>
-      )}
-
       <Group position="apart" mb="lg">
         <Box style={{ maxWidth: "70%" }}>
           <Title order={3}>{share?.name || share?.id}</Title>
@@ -284,6 +273,23 @@ const Share = ({
           )}
         </Group>
       </Group>
+
+      {share?.oneTimeDownload && (
+        <Alert
+          icon={<TbAlertCircle size={18} />}
+          color="orange"
+          variant="light"
+          mb="md"
+          py="xs"
+        >
+          <Text size="sm">
+            <Text span weight={600}>
+              {t("share.one-time.title")}.
+            </Text>{" "}
+            <FormattedMessage id="share.one-time.description" />
+          </Text>
+        </Alert>
+      )}
 
       <FileList
         files={share?.files}

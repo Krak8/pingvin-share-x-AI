@@ -15,6 +15,7 @@ const categories = [
   "s3",
   "legal",
   "cache",
+  "integrations",
 ];
 
 const list = async (): Promise<Config[]> => {
@@ -69,6 +70,13 @@ const sendTestEmail = async (email: string) => {
   await api.post("/configs/admin/testEmail", { email });
 };
 
+const testWebhook = async () => {
+  return (await api.post("/configs/admin/testWebhook")).data as {
+    ok: boolean;
+    status: number;
+  };
+};
+
 const testRedisConnection = async () => {
   return (await api.post("/configs/admin/testRedis")).data as {
     ok: boolean;
@@ -106,6 +114,7 @@ export default {
   finishSetup,
   sendTestEmail,
   testRedisConnection,
+  testWebhook,
   isNewReleaseAvailable,
   changeLogo,
   changeDarkLogo,
